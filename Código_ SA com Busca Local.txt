@@ -1,0 +1,97 @@
+import numpy as np
+import sys
+import time
+import math
+
+np.set_printoptions(threshold=sys.maxsize)
+
+def evaluate_solution(a, w, K):
+    bin_weights = np.dot(a, w)
+    return np.sum(bin_weights > K)
+
+def local_search(a, w, K, timeout=3600):
+    start_time = time.time()
+    improved = True
+    while improved and time.time() - start_time < timeout:
+        improved = False
+        for i in range(len(w)):
+            for j in range(len(a[0])):
+                if a[i, j] == 1:
+                    a[i, j] = 0  # Remove o item i do bin j
+                    for k in range(len(a[0])):
+                        if np.sum(a[:, k] * w) + w[i] <= K:
+                            a[i, k] = 1  # Adiciona o item i ao bin k
+                            improved = True
+                            break
+                    if improved:
+                        break
+                if improved:
+                    break
+
+def simulated_annealing(a, w, K, max_iterations=1000, initial_temperature=1000, cooling_rate=0.995, timeout=60):
+    current_solution = np.copy(a)
+    best_solution = np.copy(current_solution)
+    current_cost = evaluate_solution(current_solution, w, K)
+    best_cost = current_cost
+    temperature = initial_temperature
+    start_time = time.time()
+    
+    for iteration in range(max_iterations):
+        if time.time() - start_time >= timeout:
+            break
+        
+        i, j = np.random.randint(len(w)), np.random.randint(len(a[0]))
+        current_solution[i, j] = 1 - current_solution[i, j]  # Troca o item i de bin
+        new_cost = evaluate_solution(current_solution, w, K)
+        delta_cost = new_cost - current_cost
+
+        if delta_cost <= 0 or np.random.rand() < math.exp(-delta_cost / temperature):
+            current_cost = new_cost
+            if current_cost < best_cost:
+                best_cost = current_cost
+                best_solution = np.copy(current_solution)
+        else:
+            # Revert a mudança
+            current_solution[i, j] = 1 - current_solution[i, j]
+        
+        temperature *= cooling_rate
+    
+    return best_solution, best_cost
+
+m = 120  # número de itens
+K = 150  # capacidade do bin
+w = np.array([99,99,98,98,97,97,96,95,92,92,92,92,91,91,91,90,89,89,88,87,87,87,86,85,84,84,84,84,82,82,81,79,78,78,77,77,76,76,75,75,75,74,73,73,73,73,72,71,71,71,71,70,69,69,69,69,69,68,68,67,66,65,65,61,60,60,59,57,57,57,57,57,56,55,53,52,52,50,50,49,48,45,45,43,43,42,42,42,42,42,41,40,40,39,39,37,37,37,36,35,34,32,32,31,31,30,28,27,25,24,24,23,21,21,21,21,21,20,20,20])  # vetor de pesos
+controla = np.array([1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1])  # vetor auxiliar
+a = np.zeros((m, m))  # variável de decisão
+
+nbins = 0
+itens = m
+
+while itens > 0:
+    nbins = nbins + 1
+    Kr = K
+    for i in range(0, m):
+        if controla[i] == 1:
+            if w[i] <= Kr:
+                Kr = Kr - w[i]
+                controla[i] = 0
+                itens = itens - 1
+                a[i, nbins - 1] = 1
+
+print('Solução inicial:')
+print('Fobj = número de bins =', nbins)
+print('Solução a =\n', a)
+
+# Executar o Simulated Annealing com busca local
+best_solution, best_cost = simulated_annealing(a, w, K)
+
+print('\nSolução após Simulated Annealing com busca local:')
+print('Fobj = número de bins =', np.sum(best_solution.any(axis=0)))
+print('Solução a =\n', best_solution)
+
+# Executar a busca local novamente na melhor solução
+local_search(best_solution, w, K)
+
+print('\nSolução após segunda busca local:')
+print('Fobj = número de bins =', np.sum(best_solution.any(axis=0)))
+print('Solução a =\n', best_solution)

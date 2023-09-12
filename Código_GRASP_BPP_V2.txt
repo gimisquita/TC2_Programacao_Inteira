@@ -1,0 +1,72 @@
+import numpy as np
+import random
+import sys
+np.set_printoptions(threshold=sys.maxsize)
+import time
+
+m = 120  # número de itens
+K = 150  # capacidade do bin
+w = np.array([98,98,98,96,96,94,93,93,92,91,91,90,87,86,85,85,84,84,84,84,84,83,83,82,82,81,80,80,80,79,79,78,78,78,78,76,74,74,73,73,73,73,72,71,70,70,70,69,69,69,67,66,64,62,62,60,60,59,58,58,58,57,57,57,57,55,55,55,50,49,49,49,47,46,46,45,45,44,44,43,43,43,43,42,42,42,42,42,41,41,41,39,39,38,38,38,37,36,36,36,35,33,33,33,32,32,30,30,30,29,28,27,27,26,25,25,24,23,23,20]) # vetor de pesos
+max_time = 1200  # limite de tempo em segundos
+
+def generate_random_initial_solution(m, K, w):
+    items = list(range(m))
+    random.shuffle(items)
+    a = np.zeros((m, m))
+    nbins = 0
+
+    while len(items) > 0:
+        nbins = nbins + 1
+        Kr = K
+        for i in items[:]:
+            if w[i] <= Kr:
+                Kr = Kr - w[i]
+                items.remove(i)
+                a[i, nbins - 1] = 1
+
+    return a
+
+def evaluate_solution(a, w, K):
+    bin_weights = np.dot(a, w)
+    return np.sum(bin_weights > K)
+
+def local_search(a, w, K, timeout=1200):
+    start_time = time.time()
+    improved = True
+    while improved and time.time() - start_time < timeout:
+        improved = False
+        for i in range(len(w)):
+            for j in range(len(a[0])):
+                if a[i, j] == 1:
+                    a[i, j] = 0
+                    for k in range(len(a[0])):
+                        if np.sum(a[:, k] * w) + w[i] <= K:
+                            a[i, k] = 1
+                            improved = True
+                            break
+                    if improved:
+                        break
+                if improved:
+                    break
+
+def grasp(m, K, w, max_time):
+    best_solution = generate_random_initial_solution(m, K, w)
+    best_value = np.sum(best_solution.any(axis=0))
+    start_time = time.time()
+
+    while time.time() - start_time < max_time:
+        candidate_solution = generate_random_initial_solution(m, K, w)
+        local_search(candidate_solution, w, K)
+        candidate_value = np.sum(candidate_solution.any(axis=0))
+
+        if candidate_value < best_value:
+            best_solution = candidate_solution
+            best_value = candidate_value
+
+    return best_solution, best_value
+
+best_solution, best_value = grasp(m, K, w, max_time)
+
+print("Melhor solução encontrada:")
+print("Fobj = número de bins =", best_value)
+print("Solução a =\n", best_solution)
