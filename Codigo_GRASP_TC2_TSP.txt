@@ -1,0 +1,105 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import random
+
+def ler_arquivo_de_coordenadas(arquivo):
+    coordenadas = {}
+    with open(arquivo, 'r') as f:
+        for linha in f:
+            partes = linha.strip().split()
+            indice = int(partes[0]) - 1
+            coordenadas[indice] = (float(partes[1]), float(partes[2]))
+
+    return coordenadas
+
+
+def ler_matriz_distancias(file_path):
+    with open(file_path, 'r') as file:
+        matriz_custo = []
+        for line in file:
+            matriz_custo.append(list(map(float, line.strip().split())))
+
+    return matriz_custo
+
+
+def heuristica_construtiva(matriz_custo):
+    num_nos = len(matriz_custo)
+    no_corrente = random.randrange(num_nos)
+    solucao = [no_corrente]
+
+    nos_nao_visitados = set(range(num_nos)) - {no_corrente}
+
+    while nos_nao_visitados:
+        proximo_no = min(nos_nao_visitados, key=lambda x: matriz_custo[no_corrente][x])
+        nos_nao_visitados.remove(proximo_no)
+        solucao.append(proximo_no)
+        no_corrente = proximo_no
+
+    return solucao
+
+
+def dois_opt(solucao, i, j):
+    # Realiza uma troca 2-opt entre as arestas (i, i+1) e (j, j+1)
+    nova_solucao = solucao[:i + 1] + solucao[i + 1:j + 1][::-1] + solucao[j + 1:]
+    return nova_solucao
+
+
+def busca_local(solucao, matriz_custo):
+    melhoria = True
+    while melhoria:
+        melhoria = False
+        for i in range(len(solucao) - 1):
+            for j in range(i + 1, len(solucao) - 1):
+                if matriz_custo[solucao[i]][solucao[j]] + matriz_custo[solucao[i + 1]][solucao[j + 1]] < \
+                        matriz_custo[solucao[i]][solucao[i + 1]] + matriz_custo[solucao[j]][solucao[j + 1]]:
+                    solucao = dois_opt(solucao, i, j)
+                    melhoria = True
+    return solucao
+
+
+def grasp(matriz_custo, interacoes):
+    melhor_solucao = None
+    melhor_custo = float('inf')
+
+    for _ in range(interacoes):
+        solucao = heuristica_construtiva(matriz_custo)
+        solucao = busca_local(solucao, matriz_custo)
+        custo = sum(matriz_custo[i][j] for i, j in zip(solucao, solucao[1:] + [solucao[0]]))
+
+        if custo < melhor_custo:
+            melhor_custo = custo
+            melhor_solucao = solucao
+
+    return melhor_solucao, melhor_custo
+
+
+def plotar_solucao(solucao, coordenadas):
+    x = [coordenadas[i][0] for i in solucao]
+    y = [coordenadas[i][1] for i in solucao]
+
+    # Adiciona o primeiro ponto ao final da lista para fechar o circuito
+    x.append(x[0])
+    y.append(y[0])
+
+    plt.plot(x, y, marker='o')
+
+    # Adicionando rótulos aos pontos para representar a ordem dos pontos na rota
+    for i, (xi, yi) in enumerate(zip(x, y)):
+        plt.text(xi, yi, str(i))
+
+    plt.show()
+
+
+
+# Caminhos para os arquivos
+arquivo_coordenadas = 'P:/Documentos/PO203 - Otim Inteira/TC2/xqf131_para_preprocessamento.txt'
+arquivo_entrada = "P:\Documentos\PO203 - Otim Inteira\TC2\saida.txt"
+arquivo_saida = "P:\Documentos\PO203 - Otim Inteira\TC2\saida_tsp_heuristica_1.txt"
+
+# Lendo a matriz de distâncias e resolvendo o TSP
+coordenadas = ler_arquivo_de_coordenadas(arquivo_coordenadas)
+matriz_custo = ler_matriz_distancias(arquivo_entrada)
+matriz_custo = np.array(matriz_custo)
+solucao, custo = grasp(matriz_custo, 10)
+print(f"Custo: {custo}")
+plotar_solucao(solucao, coordenadas)
